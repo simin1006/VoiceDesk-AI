@@ -1,0 +1,8 @@
+streamlit
+openai-whisper
+pandas
+numpy
+sentence-transformers
+scikit-learn
+ollama
+pyttsx3
