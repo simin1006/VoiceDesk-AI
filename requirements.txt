@@ -3,6 +3,7 @@ openai-whisper
 pandas
 numpy
 sentence-transformers
+torchvision
 scikit-learn
 groq
 pyttsx3
