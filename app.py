@@ -4,7 +4,7 @@ import tempfile
 import os
 import pandas as pd
 import numpy as np
-import ollama
+from groq import Groq
 import pyttsx3
 
 from sentence_transformers import SentenceTransformer
@@ -101,16 +101,21 @@ def search_documents(query, top_k=3):
 
 def generate_ai_response(question, context):
 
+    client = Groq(
+        api_key=st.secrets["GROQ_API_KEY"]
+    )
+
     prompt = f"""
-You are VoiceDesk AI, a customer support assistant.
+You are VoiceDesk AI, a helpful customer support assistant.
 
-Answer the user's question using the knowledge base information below.
+Answer the user's question using the knowledge base below.
 
-IMPORTANT:
-- If the knowledge base contains the answer, answer directly.
-- Do not say that the information is unavailable if the answer is present.
+Rules:
+- Use only the information in the knowledge base.
+- If the answer is present, answer directly.
+- Do not say the information is unavailable when it is present.
 - Do not invent information.
-- Keep the answer simple and concise.
+- Keep the answer short and clear.
 
 Knowledge Base:
 {context}
@@ -118,21 +123,21 @@ Knowledge Base:
 User Question:
 {question}
 
-Give the answer now:
+Answer:
 """
 
-    response = ollama.chat(
-        model="llama3.2:1b",
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
         messages=[
             {
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        temperature=0.2
     )
 
-    return response["message"]["content"].strip()
-
+    return response.choices[0].message.content.strip()
 # --------------------------------------------------
 # TEXT TO SPEECH FUNCTION
 # --------------------------------------------------
