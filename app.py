@@ -197,53 +197,26 @@ Answer:
 
 def text_to_speech(text):
 
-    audio_path = tempfile.mktemp(
-        suffix=".wav"
-    )
+    audio_path = tempfile.mktemp(suffix=".mp3")
 
     try:
-
-        engine = pyttsx3.init()
-
-        engine.setProperty(
-            "rate",
-            160
+        tts = gTTS(
+            text=text,
+            lang="en",
+            slow=False
         )
 
-        engine.save_to_file(
-            text,
-            audio_path
-        )
+        tts.save(audio_path)
 
-        engine.runAndWait()
-
-        engine.stop()
-
-        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-            return audio_path
+        if os.path.exists(audio_path):
+            if os.path.getsize(audio_path) > 0:
+                return audio_path
 
         return None
 
-    except Exception:
-        try:
-            engine.stop()
-        except Exception:
-            pass
-
+    except Exception as e:
+        st.error(f"TTS Error: {e}")
         return None
-
-
-# --------------------------------------------------
-# VOICE INPUT
-# --------------------------------------------------
-
-st.subheader("🎤 Voice Input")
-
-audio_file = st.audio_input(
-    "Speak your question"
-)
-
-
 # --------------------------------------------------
 # PROCESS AUDIO
 # --------------------------------------------------
@@ -393,10 +366,9 @@ if audio_file:
                 )
 
                 st.audio(
-                    response_audio,
-                    format="audio/wav"
-                )
-
+    response_audio,
+    format="audio/mp3"
+)
             else:
 
                 st.info(
