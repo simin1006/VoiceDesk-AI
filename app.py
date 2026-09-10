@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from groq import Groq
-import pyttsx3
+from gtts import gTTS
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
