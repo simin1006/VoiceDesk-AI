@@ -44,13 +44,10 @@ def load_embedding_model():
 @st.cache_data
 def load_rag_data():
 
-    chunks = pd.read_pickle(
-        "rag_data/chunks_df.pkl"
-    )
+    embedding_model = load_embedding_model()
 
-    embeddings = np.load(
-        "rag_data/embeddings.npy"
-    )
+chunks_df, embeddings = load_rag_data()
+
 
     return chunks, embeddings
 
