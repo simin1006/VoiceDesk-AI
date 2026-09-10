@@ -6,3 +6,4 @@ pandas
 numpy
 groq
 pyttsx3
+torchvision
