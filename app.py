@@ -217,6 +217,18 @@ def text_to_speech(text):
     except Exception as e:
         st.error(f"TTS Error: {e}")
         return None
+
+
+# --------------------------------------------------
+# VOICE INPUT
+# --------------------------------------------------
+
+st.subheader("🎤 Voice Input")
+
+audio_file = st.audio_input(
+    "Speak your question"
+)
+
 # --------------------------------------------------
 # PROCESS AUDIO
 # --------------------------------------------------
