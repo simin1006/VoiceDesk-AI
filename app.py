@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 # --------------------------------------------------
-# PAGE CONFIGURATION
+# PAGE SETTINGS
 # --------------------------------------------------
 
 st.set_page_config(
@@ -23,12 +23,11 @@ st.set_page_config(
 
 st.title("🎙️ VoiceDesk AI")
 st.write("Your AI-powered voice support assistant")
-
 st.divider()
 
 
 # --------------------------------------------------
-# LOAD MODELS
+# LOAD WHISPER MODEL
 # --------------------------------------------------
 
 @st.cache_resource
@@ -36,35 +35,75 @@ def load_whisper_model():
     return whisper.load_model("base")
 
 
+# --------------------------------------------------
+# LOAD EMBEDDING MODEL
+# --------------------------------------------------
+
 @st.cache_resource
 def load_embedding_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 
+# --------------------------------------------------
+# LOAD RAG DATA
+# --------------------------------------------------
+
 @st.cache_data
 def load_rag_data():
 
-    @st.cache_data
-def load_rag_data():
-    chunks = pd.read_pickle("chunks_df.pkl")
-    embeddings = np.load("embeddings.npy")
+    # First check rag_data folder
+    rag_chunks_path = os.path.join(
+        "rag_data",
+        "chunks_df.pkl"
+    )
+
+    rag_embeddings_path = os.path.join(
+        "rag_data",
+        "embeddings.npy"
+    )
+
+    # If files are inside rag_data folder
+    if os.path.exists(rag_chunks_path) and os.path.exists(rag_embeddings_path):
+
+        chunks_path = rag_chunks_path
+        embeddings_path = rag_embeddings_path
+
+    # Otherwise check root folder
+    elif os.path.exists("chunks_df.pkl") and os.path.exists("embeddings.npy"):
+
+        chunks_path = "chunks_df.pkl"
+        embeddings_path = "embeddings.npy"
+
+    else:
+        raise FileNotFoundError(
+            "RAG files not found. Please make sure chunks_df.pkl "
+            "and embeddings.npy are uploaded to GitHub."
+        )
+
+    chunks = pd.read_pickle(chunks_path)
+    embeddings = np.load(embeddings_path)
+
     return chunks, embeddings
 
 
+# --------------------------------------------------
+# LOAD MODELS AND DATA
+# --------------------------------------------------
+
 whisper_model = load_whisper_model()
 embedding_model = load_embedding_model()
-
 chunks_df, embeddings = load_rag_data()
 
 
 # --------------------------------------------------
-# RAG SEARCH FUNCTION
+# SEARCH DOCUMENTS
 # --------------------------------------------------
 
 def search_documents(query, top_k=3):
 
     query_embedding = embedding_model.encode(
-        [query]
+        [query],
+        convert_to_numpy=True
     )
 
     similarities = cosine_similarity(
@@ -72,9 +111,7 @@ def search_documents(query, top_k=3):
         embeddings
     )[0]
 
-    top_indices = np.argsort(
-        similarities
-    )[::-1][:top_k]
+    top_indices = np.argsort(similarities)[::-1][:top_k]
 
     results = []
 
@@ -83,7 +120,8 @@ def search_documents(query, top_k=3):
         results.append({
             "Document": chunks_df.iloc[index]["Document"],
             "Similarity": round(
-                float(similarities[index]), 4
+                float(similarities[index]),
+                4
             ),
             "Text": chunks_df.iloc[index]["Text"]
         })
@@ -92,7 +130,7 @@ def search_documents(query, top_k=3):
 
 
 # --------------------------------------------------
-# OLLAMA RESPONSE FUNCTION
+# GENERATE AI RESPONSE
 # --------------------------------------------------
 
 def generate_ai_response(question, context):
@@ -109,14 +147,25 @@ Your name is VoiceDesk AI.
 Answer the user's question using the knowledge base below.
 
 Rules:
-- If the user asks "What's your name?" or "What is your name?", reply exactly:
+
+- If the user asks "What's your name?" or "What is your name?",
+  reply exactly:
   "My name is VoiceDesk AI."
-- If the user asks who you are, reply:
+
+- If the user asks who you are,
+  reply:
   "I am VoiceDesk AI, a customer support assistant."
-- For customer support questions, use only the information in the knowledge base.
-- If the answer is present, answer directly.
+
+- For customer support questions, use only the information
+  provided in the knowledge base.
+
+- If the answer is present in the knowledge base,
+  answer directly.
+
 - Do not say the information is unavailable if it is present.
+
 - Do not invent information.
+
 - Keep the answer short and clear.
 
 Knowledge Base:
@@ -140,29 +189,49 @@ Answer:
     )
 
     return response.choices[0].message.content.strip()
+
+
 # --------------------------------------------------
-# TEXT TO SPEECH FUNCTION
+# TEXT TO SPEECH
 # --------------------------------------------------
 
 def text_to_speech(text):
-    audio_path = tempfile.mktemp(suffix=".wav")
 
-    engine = pyttsx3.init()
-    engine.setProperty("rate", 160)
-
-    engine.save_to_file(text, audio_path)
+    audio_path = tempfile.mktemp(
+        suffix=".wav"
+    )
 
     try:
-        engine.runAndWait()
-    except RuntimeError:
-        engine.stop()
+
         engine = pyttsx3.init()
-        engine.save_to_file(text, audio_path)
+
+        engine.setProperty(
+            "rate",
+            160
+        )
+
+        engine.save_to_file(
+            text,
+            audio_path
+        )
+
         engine.runAndWait()
 
-    engine.stop()
+        engine.stop()
 
-    return audio_path
+        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            return audio_path
+
+        return None
+
+    except Exception:
+        try:
+            engine.stop()
+        except Exception:
+            pass
+
+        return None
+
 
 # --------------------------------------------------
 # VOICE INPUT
@@ -175,132 +244,149 @@ audio_file = st.audio_input(
 )
 
 
+# --------------------------------------------------
+# PROCESS AUDIO
+# --------------------------------------------------
+
 if audio_file:
 
     st.success(
         "Voice input received successfully! ✅"
     )
 
-    # Save recorded audio temporarily
+    audio_data = audio_file.getvalue()
+
+    # Check empty audio
+    if not audio_data or len(audio_data) < 1000:
+
+        st.error(
+            "The recorded audio is empty or too short. "
+            "Please record your question again."
+        )
+
+        st.stop()
+
+    # Save temporary audio file
     with tempfile.NamedTemporaryFile(
         delete=False,
         suffix=".wav"
     ) as temp_audio:
 
-        temp_audio.write(
-            audio_file.getvalue()
-        )
+        temp_audio.write(audio_data)
 
         audio_path = temp_audio.name
 
-
     try:
 
-        # ------------------------------------------
-        # WHISPER - SPEECH TO TEXT
-        # ------------------------------------------
+        # --------------------------------------------------
+        # SPEECH TO TEXT
+        # --------------------------------------------------
 
         with st.spinner(
             "Converting speech to text..."
         ):
 
             result = whisper_model.transcribe(
-                audio_path
+                audio_path,
+                fp16=False
             )
 
-        transcribed_text = result[
-            "text"
-        ].strip()
+        transcribed_text = result["text"].strip()
 
+        # --------------------------------------------------
+        # CHECK TRANSCRIPTION
+        # --------------------------------------------------
 
-        if transcribed_text:
+        if not transcribed_text:
+
+            st.warning(
+                "No speech detected. "
+                "Please speak clearly and try again."
+            )
+
+            st.stop()
+
+        st.subheader("📝 Transcribed Text")
+
+        st.write(
+            transcribed_text
+        )
+
+        # --------------------------------------------------
+        # SEARCH KNOWLEDGE BASE
+        # --------------------------------------------------
+
+        with st.spinner(
+            "Searching knowledge base..."
+        ):
+
+            results = search_documents(
+                transcribed_text,
+                top_k=3
+            )
+
+        st.subheader(
+            "🔍 Retrieved Information"
+        )
+
+        if results:
+
+            context_parts = []
+
+            for result in results:
+
+                clean_text = str(
+                    result["Text"]
+                )
+
+                # Fix bullet formatting
+                clean_text = clean_text.replace(
+                    " o ",
+                    "\n• "
+                )
+
+                context_parts.append(
+                    clean_text
+                )
+
+            context = "\n\n".join(
+                context_parts
+            )
+
+            # --------------------------------------------------
+            # AI RESPONSE
+            # --------------------------------------------------
+
+            with st.spinner(
+                "Generating AI response..."
+            ):
+
+                ai_response = generate_ai_response(
+                    transcribed_text,
+                    context
+                )
 
             st.subheader(
-                "📝 Transcribed Text"
+                "🤖 AI Response"
             )
 
             st.write(
-                transcribed_text
+                ai_response
             )
 
-
-            # --------------------------------------
-            # RAG - RETRIEVE INFORMATION
-            # --------------------------------------
+            # --------------------------------------------------
+            # VOICE RESPONSE
+            # --------------------------------------------------
 
             with st.spinner(
-                "Searching knowledge base..."
+                "Converting response to voice..."
             ):
 
-                results = search_documents(
-                    transcribed_text,
-                    top_k=3
-                )
-
-
-            st.subheader(
-                "🔍 Retrieved Information"
-            )
-
-
-            if results:
-
-                # Use top 3 results as context
-                context_parts = []
-
-                for result in results:
-
-                    clean_text = result["Text"]
-
-                    clean_text = clean_text.replace(
-                        " o ",
-                        "\n• "
-                    )
-
-                    context_parts.append(
-                        clean_text
-                    )
-
-                context = "\n\n".join(
-                    context_parts
-                )
-
-
-                # ----------------------------------
-                # OLLAMA - AI RESPONSE
-                # ----------------------------------
-
-                with st.spinner(
-                    "Generating AI response..."
-                ):
-
-                    ai_response = generate_ai_response(
-                        transcribed_text,
-                        context
-                    )
-
-
-                st.subheader(
-                    "🤖 AI Response"
-                )
-
-                st.write(
+                response_audio = text_to_speech(
                     ai_response
                 )
 
-
-                # ----------------------------------
-                # TEXT TO SPEECH
-                # ----------------------------------
-
-                with st.spinner(
-                    "Converting response to voice..."
-                ):
-
-                    response_audio = text_to_speech(
-                        ai_response
-                    )
-
+            if response_audio:
 
                 st.subheader(
                     "🔊 Voice Response"
@@ -311,41 +397,45 @@ if audio_file:
                     format="audio/wav"
                 )
 
+            else:
 
-                # ----------------------------------
-                # CLEAN TEMP AUDIO
-                # ----------------------------------
+                st.info(
+                    "Voice playback is currently unavailable, "
+                    "but the AI response was generated successfully."
+                )
 
-                if os.path.exists(
-                    response_audio
-                ):
+            # Clean temporary TTS file
 
+            if response_audio and os.path.exists(
+                response_audio
+            ):
+
+                try:
                     os.remove(
                         response_audio
                     )
-
-
-            else:
-
-                st.warning(
-                    "No relevant information found."
-                )
-
+                except Exception:
+                    pass
 
         else:
 
             st.warning(
-                "No speech detected. "
-                "Please try again."
+                "No relevant information found."
             )
 
+    except Exception as e:
+
+        st.error(
+            f"An error occurred while processing your audio: {e}"
+        )
 
     finally:
 
-        if os.path.exists(
-            audio_path
-        ):
+        # Delete temporary input audio
 
-            os.remove(
-                audio_path
-            )
+        if os.path.exists(audio_path):
+
+            try:
+                os.remove(audio_path)
+            except Exception:
+                pass
