@@ -215,7 +215,7 @@ def text_to_speech(text):
         if not clean_text:
             return None
 
-        tts = gTTS(text=clean_text, lang="en", slow=False)
+        tts = gTTS(text=clean_text, lang="en", tld="co.in", slow=False)
         tts.save(audio_path)
 
         if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
