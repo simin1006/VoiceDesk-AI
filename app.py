@@ -196,28 +196,37 @@ Answer:
 # TEXT TO SPEECH
 # --------------------------------------------------
 
-st.write("Text sent to voice:", answer)
+
+
 def text_to_speech(text):
     audio_path = tempfile.mktemp(suffix=".mp3")
+
     try:
-        # Remove markdown formatting and unwanted symbols
+        # Remove Markdown formatting
         clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
         clean_text = re.sub(r'\*(.*?)\*', r'\1', clean_text)
         clean_text = re.sub(r'#{1,6}\s*', '', clean_text)
         clean_text = re.sub(r'[`_~]', '', clean_text)
+
+        # Remove unwanted symbols
         clean_text = re.sub(r'[^\w\s.,!?;:\'-]', ' ', clean_text)
         clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+
+        if not clean_text:
+            return None
 
         tts = gTTS(text=clean_text, lang="en", slow=False)
         tts.save(audio_path)
 
         if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
             return audio_path
+
         return None
 
     except Exception as e:
         st.error(f"TTS Error: {e}")
         return None
+
 
 
 # --------------------------------------------------
