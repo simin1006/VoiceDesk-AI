@@ -141,7 +141,7 @@ def generate_ai_response(question, context):
     )
 
     prompt = f"""
-You are VoiceDesk AI, a helpful customer support assistant.
+You are VoiceDesk AI, a helpful voice-enabled support assistant.
 
 Your name is VoiceDesk AI.
 
