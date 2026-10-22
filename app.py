@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 st.title("🎙️ VoiceDesk AI")
-st.write("Your AI-powered voice support assistant")
+st.write("Your AI-powered voice-enabled support assistant")
 st.divider()
 
 
