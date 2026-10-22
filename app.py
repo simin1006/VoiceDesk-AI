@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from groq import Groq
+import re
 from gtts import gTTS
 
 from sentence_transformers import SentenceTransformer
@@ -195,23 +196,23 @@ Answer:
 # TEXT TO SPEECH
 # --------------------------------------------------
 
+st.write("Text sent to voice:", answer)
 def text_to_speech(text):
-
     audio_path = tempfile.mktemp(suffix=".mp3")
-
     try:
-        tts = gTTS(
-            text=text,
-            lang="en",
-            slow=False
-        )
+        # Remove markdown formatting and unwanted symbols
+        clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        clean_text = re.sub(r'\*(.*?)\*', r'\1', clean_text)
+        clean_text = re.sub(r'#{1,6}\s*', '', clean_text)
+        clean_text = re.sub(r'[`_~]', '', clean_text)
+        clean_text = re.sub(r'[^\w\s.,!?;:\'-]', ' ', clean_text)
+        clean_text = re.sub(r'\s+', ' ', clean_text).strip()
 
+        tts = gTTS(text=clean_text, lang="en", slow=False)
         tts.save(audio_path)
 
-        if os.path.exists(audio_path):
-            if os.path.getsize(audio_path) > 0:
-                return audio_path
-
+        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            return audio_path
         return None
 
     except Exception as e:
