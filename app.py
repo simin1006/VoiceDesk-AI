@@ -155,7 +155,7 @@ Rules:
 
 - If the user asks who you are,
   reply:
-  "I am VoiceDesk AI, a customer support assistant."
+  "I am VoiceDesk AI, a voice-enabled support assistant."
 
 - For customer support questions, use only the information
   provided in the knowledge base.
@@ -196,8 +196,6 @@ Answer:
 # TEXT TO SPEECH
 # --------------------------------------------------
 
-
-
 def text_to_speech(text):
     audio_path = tempfile.mktemp(suffix=".mp3")
 
@@ -215,7 +213,7 @@ def text_to_speech(text):
         if not clean_text:
             return None
 
-        tts = gTTS(text=clean_text, lang="en", tld="co.in", slow=False)
+        tts = gTTS(text=clean_text, lang="en", slow=False)
         tts.save(audio_path)
 
         if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
